@@ -16,6 +16,8 @@ public class Project
 
     public byte[] RowVersion { get; private set; } = null!;
 
+    public ICollection<WorkTask> Tasks { get; private set; } = new List<WorkTask>();
+
     private Project() { }
 
     public Project(string name, Guid ownerId, string? description = null)
