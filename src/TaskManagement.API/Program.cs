@@ -13,6 +13,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddSingleton<PasswordHasher>();
+builder.Services.AddSingleton<JwtTokenGenerator>();
 
 // DbContext
 builder.Services.AddDbContext<ApplicationDbContext>(options =>

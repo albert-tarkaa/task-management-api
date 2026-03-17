@@ -6,7 +6,7 @@ using TaskManagement.Infrastructure.Security;
 
 namespace TaskManagement.Infrastructure.Services;
 
-public class UserService (ApplicationDbContext db,PasswordHasher hasher) : IUserService
+public class UserService (ApplicationDbContext db,PasswordHasher hasher,JwtTokenGenerator jwt) : IUserService
 {
     public async Task<User> RegisterAsync(string email, string password)
     {
@@ -33,11 +33,9 @@ public class UserService (ApplicationDbContext db,PasswordHasher hasher) : IUser
 
         bool valid = hasher.Verify(password, user.PasswordHash);
 
-        if (!valid)
-            throw new Exception("Invalid credentials");
+        if (valid) return jwt.Generate(user);
+        throw new Exception("Invalid credentials");
 
-        // JWT will be implemented next
-        return "jwt-token-placeholder";
     }
 
     public async Task ChangePasswordAsync(Guid userId, string currentPassword, string newPassword)
