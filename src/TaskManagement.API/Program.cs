@@ -17,6 +17,7 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddSingleton<PasswordHasher>();
 builder.Services.AddSingleton<JwtTokenGenerator>();
+builder.Services.AddScoped<IProjectService, ProjectService>();
 
 // DbContext
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
