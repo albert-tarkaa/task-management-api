@@ -11,6 +11,10 @@ namespace TaskManagement.API.Controllers;
 public class ProjectsController(IProjectService projects)  : ControllerBase
 {
     public record CreateProjectRequest(string Name, string? Description);
+    public record UpdateProjectRequest(
+        string Name,
+        string? Description,
+        byte[] RowVersion);
 
     [HttpPost]
     public async Task<IActionResult> Create(CreateProjectRequest request)
@@ -47,5 +51,31 @@ public class ProjectsController(IProjectService projects)  : ControllerBase
             project.CreatedAt,
             project.RowVersion
         });
+    }
+
+    [HttpPut("{id:guid}")]
+    public async Task<IActionResult> Update(Guid id, UpdateProjectRequest request)
+    {
+        try
+        {
+            await projects.UpdateAsync(
+                id,
+                request.Name,
+                request.Description,
+                request.RowVersion);
+
+            return NoContent();
+        }
+        catch (Microsoft.EntityFrameworkCore.DbUpdateConcurrencyException)
+        {
+            return Conflict(new
+            {
+                message = "Project was modified by another user. Refresh and try again."
+            });
+        }
+        catch (Exception ex)
+        {
+            return NotFound(new { ex.Message });
+        }
     }
 }
