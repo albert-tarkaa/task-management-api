@@ -30,4 +30,22 @@ public class ProjectsController(IProjectService projects)  : ControllerBase
             project.CreatedAt
         });
     }
+
+    [HttpGet("{id:guid}")]
+    public async Task<IActionResult> Get(Guid id)
+    {
+        var project = await projects.GetByIdAsync(id);
+
+        if (project == null) return NotFound();
+
+        return Ok(new
+        {
+            project.Id,
+            project.Name,
+            project.Description,
+            project.IsArchived,
+            project.CreatedAt,
+            project.RowVersion
+        });
+    }
 }
