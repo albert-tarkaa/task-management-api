@@ -1,5 +1,8 @@
 
+using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using TaskManagement.Application.Interfaces;
 using TaskManagement.Infrastructure.Persistence;
 using TaskManagement.Infrastructure.Security;
@@ -20,6 +23,31 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(
         builder.Configuration.GetConnectionString("Default")));
 
+
+//jwt
+builder.Services
+    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        var key = builder.Configuration["Jwt:Key"];
+
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateIssuerSigningKey = true,
+            ValidateLifetime = true,
+
+            ValidIssuer = builder.Configuration["Jwt:Issuer"],
+            ValidAudience = builder.Configuration["Jwt:Audience"],
+            IssuerSigningKey =
+                new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key!))
+        };
+    });
+
+builder.Services.AddAuthorization();
+
+
 var app = builder.Build();
 
 // Pipeline
@@ -30,6 +58,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapControllers();
 
