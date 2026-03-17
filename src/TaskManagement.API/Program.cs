@@ -1,6 +1,9 @@
 
 using Microsoft.EntityFrameworkCore;
+using TaskManagement.Application.Interfaces;
 using TaskManagement.Infrastructure.Persistence;
+using TaskManagement.Infrastructure.Security;
+using TaskManagement.Infrastructure.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -8,6 +11,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddSingleton<PasswordHasher>();
 
 // DbContext
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
