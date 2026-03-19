@@ -15,6 +15,7 @@ public class ProjectsController(IProjectService projects)  : ControllerBase
         string Name,
         string? Description,
         byte[] RowVersion);
+    public record ArchiveProjectRequest(byte[] RowVersion);
 
     [HttpPost]
     public async Task<IActionResult> Create(CreateProjectRequest request)
@@ -64,6 +65,27 @@ public class ProjectsController(IProjectService projects)  : ControllerBase
                 request.Description,
                 request.RowVersion);
 
+            return NoContent();
+        }
+        catch (Microsoft.EntityFrameworkCore.DbUpdateConcurrencyException)
+        {
+            return Conflict(new
+            {
+                message = "Project was modified by another user. Refresh and try again."
+            });
+        }
+        catch (Exception ex)
+        {
+            return NotFound(new { ex.Message });
+        }
+    }
+
+    [HttpPost("{id:guid}/archive")]
+    public async Task<IActionResult> Archive(Guid id, ArchiveProjectRequest request)
+    {
+        try
+        {
+            await projects.ArchiveAsync(id, request.RowVersion);
             return NoContent();
         }
         catch (Microsoft.EntityFrameworkCore.DbUpdateConcurrencyException)
