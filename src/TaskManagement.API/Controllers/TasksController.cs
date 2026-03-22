@@ -78,4 +78,25 @@ public class TasksController(ITaskService tasks) : ControllerBase
             return NotFound(new { ex.Message });
         }
     }
+
+    [HttpPost("{id:guid}/complete")]
+    public async Task<IActionResult> Complete(Guid id, TransitionRequest request)
+    {
+        try
+        {
+            await tasks.CompleteAsync(id, request.RowVersion);
+            return NoContent();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return Conflict(new
+            {
+                message = "Task was modified by another user. Refresh and try again."
+            });
+        }
+        catch (Exception ex)
+        {
+            return NotFound(new { ex.Message });
+        }
+    }
 }
