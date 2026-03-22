@@ -45,6 +45,9 @@ public class WorkTask
 
     public void Start()
     {
+        if (Status != WorkTaskStatus.Todo)
+                throw new InvalidOperationException("Task already started or completed");
+
         Status = WorkTaskStatus.InProgress;
     }
 

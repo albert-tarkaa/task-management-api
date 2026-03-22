@@ -18,6 +18,8 @@ public class TasksController(ITaskService tasks) : ControllerBase
         DateTime? DueDate,
         string? Description);
 
+    public record TransitionRequest(byte[] RowVersion);
+
     [HttpPost]
     public async Task<IActionResult> Create(CreateTaskRequest request)
     {
@@ -54,5 +56,26 @@ public class TasksController(ITaskService tasks) : ControllerBase
             task.RowVersion,
             task.CreatedAt
         });
+    }
+
+    [HttpPost("{id:guid}/start")]
+    public async Task<IActionResult> Start(Guid id, TransitionRequest request)
+    {
+        try
+        {
+            await tasks.StartAsync(id, request.RowVersion);
+            return NoContent();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return Conflict(new
+            {
+                message = "Task was modified by another user. Refresh and try again."
+            });
+        }
+        catch (Exception ex)
+        {
+            return NotFound(new { ex.Message });
+        }
     }
 }
