@@ -12,6 +12,8 @@ public interface ITaskService
         DateTime? dueDate,
         string? description);
 
+    Task<WorkTask?> GetByIdAsync(Guid id);
+
     Task AssignAsync(Guid taskId, Guid userId, byte[] rowVersion);
 
     Task StartAsync(Guid taskId, byte[] rowVersion);

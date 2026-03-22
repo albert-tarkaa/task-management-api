@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using TaskManagement.Application.Interfaces;
 using TaskManagement.Domain.Enums;
 
@@ -30,5 +31,28 @@ public class TasksController(ITaskService tasks) : ControllerBase
         {
             return BadRequest(new { ex.Message });
         }
+    }
+
+    [HttpGet("{id:guid}")]
+    public async Task<IActionResult> Get(Guid id)
+    {
+        var task = await tasks.GetByIdAsync(id);
+
+        if (task == null)
+            return NotFound();
+
+        return Ok(new
+        {
+            task.Id,
+            task.Title,
+            task.Description,
+            task.Status,
+            task.Priority,
+            task.ProjectId,
+            task.AssignedUserId,
+            task.DueDate,
+            task.RowVersion,
+            task.CreatedAt
+        });
     }
 }

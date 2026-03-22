@@ -35,6 +35,11 @@ public class TaskService(ApplicationDbContext db) : ITaskService
         return task;
     }
 
+    public async Task<WorkTask?> GetByIdAsync(Guid taskId)
+    {
+        return await db.Tasks.AsNoTracking().FirstOrDefaultAsync(x => x.Id == taskId);
+    }
+
     public async Task AssignAsync(Guid taskId, Guid userId, byte[] rowVersion)
     {
         var task = await db.Tasks.FirstOrDefaultAsync(x => x.Id == taskId);
