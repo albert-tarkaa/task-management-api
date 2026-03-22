@@ -40,6 +40,24 @@ public class TaskService(ApplicationDbContext db) : ITaskService
         return await db.Tasks.AsNoTracking().FirstOrDefaultAsync(x => x.Id == taskId);
     }
 
+    public async Task<(int total, List<WorkTask> items)>
+        ListByProjectAsync(Guid projectId, int page, int pageSize)
+    {
+        var query = db.Tasks
+            .AsNoTracking()
+            .Where(x => x.ProjectId == projectId);
+
+        var total = await query.CountAsync();
+
+        var items = await query
+            .OrderByDescending(x => x.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        return (total, items);
+    }
+
     public async Task AssignAsync(Guid taskId, Guid userId, byte[] rowVersion)
     {
         var task = await db.Tasks.FirstOrDefaultAsync(x => x.Id == taskId);

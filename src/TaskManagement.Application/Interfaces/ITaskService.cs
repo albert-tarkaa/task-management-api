@@ -14,6 +14,9 @@ public interface ITaskService
 
     Task<WorkTask?> GetByIdAsync(Guid id);
 
+    Task<(int total, List<WorkTask> items)>
+        ListByProjectAsync(Guid projectId, int page, int pageSize);
+
     Task AssignAsync(Guid taskId, Guid userId, byte[] rowVersion);
 
     Task StartAsync(Guid taskId, byte[] rowVersion);

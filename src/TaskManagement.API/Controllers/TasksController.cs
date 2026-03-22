@@ -35,6 +35,32 @@ public class TasksController(ITaskService tasks) : ControllerBase
         }
     }
 
+    [HttpGet("project/{projectId:guid}")]
+    public async Task<IActionResult> ListByProject(
+        Guid projectId,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20)
+    {
+        var (total,taskItems) =await tasks.ListByProjectAsync(projectId, page, pageSize);
+
+        return Ok(new
+        {
+            total,
+            page,
+            pageSize,
+            items = taskItems.Select(x => new
+            {
+                x.Id,
+                x.Title,
+                x.Status,
+                x.Priority,
+                x.AssignedUserId,
+                x.DueDate,
+                x.CreatedAt
+            })
+        });
+    }
+
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> Get(Guid id)
     {
