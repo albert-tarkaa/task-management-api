@@ -6,7 +6,7 @@ using TaskManagement.Application.Interfaces;
 namespace TaskManagement.API.Controllers;
 
 [ApiController]
-[Route("api/projects")]
+[Route("api/[controller]")]
 [Authorize]
 public class ProjectsController(IProjectService projects)  : ControllerBase
 {
