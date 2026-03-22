@@ -40,24 +40,6 @@ public class TaskService(ApplicationDbContext db) : ITaskService
         return await db.Tasks.AsNoTracking().FirstOrDefaultAsync(x => x.Id == taskId);
     }
 
-    public async Task<(int total, List<WorkTask> items)>
-        ListByProjectAsync(Guid projectId, int page, int pageSize)
-    {
-        var query = db.Tasks
-            .AsNoTracking()
-            .Where(x => x.ProjectId == projectId);
-
-        var total = await query.CountAsync();
-
-        var items = await query
-            .OrderByDescending(x => x.CreatedAt)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync();
-
-        return (total, items);
-    }
-
     public async Task AssignAsync(Guid taskId, Guid userId, byte[] rowVersion)
     {
         var task = await db.Tasks.FirstOrDefaultAsync(x => x.Id == taskId);
@@ -119,4 +101,53 @@ public class TaskService(ApplicationDbContext db) : ITaskService
 
         await db.SaveChangesAsync();
     }
+
+    public async Task<(int total, List<WorkTask> items)> ListByProjectAsync(
+        Guid projectId,
+        int page,
+        int pageSize,
+        WorkTaskStatus? status,
+        TaskPriority? priority,
+        string? sortBy,
+        string? sortDir)
+    {
+        var query = db.Tasks
+            .AsNoTracking()
+            .Where(x => x.ProjectId == projectId);
+
+        if (status.HasValue)
+            query = query.Where(x => x.Status == status.Value);
+
+        if (priority.HasValue)
+            query = query.Where(x => x.Priority == priority.Value);
+
+        var total = await query.CountAsync();
+
+        var isAsc = string.Equals(sortDir, "asc", StringComparison.OrdinalIgnoreCase);
+
+        query = (sortBy?.ToLowerInvariant()) switch
+        {
+            "duedate" => isAsc
+                ? query.OrderBy(x => x.DueDate ?? DateTime.MaxValue)
+                : query.OrderByDescending(x => x.DueDate ?? DateTime.MinValue),
+
+            "priority" => isAsc
+                ? query.OrderBy(x => x.Priority)
+                : query.OrderByDescending(x => x.Priority),
+
+            "status" => isAsc
+                ? query.OrderBy(x => x.Status)
+                : query.OrderByDescending(x => x.Status),
+
+            _ => query.OrderByDescending(x => x.CreatedAt)
+        };
+
+        var items = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        return (total, items);
+    }
 }
+

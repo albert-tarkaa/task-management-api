@@ -38,10 +38,15 @@ public class TasksController(ITaskService tasks) : ControllerBase
     [HttpGet("project/{projectId:guid}")]
     public async Task<IActionResult> ListByProject(
         Guid projectId,
+        [FromQuery] WorkTaskStatus? status,
+        [FromQuery] TaskPriority? priority,
+        [FromQuery] string? sortBy,
+        [FromQuery] string? sortDir = "desc",
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20)
     {
-        var (total,taskItems) =await tasks.ListByProjectAsync(projectId, page, pageSize);
+        var (total, taskItems) =
+            await tasks.ListByProjectAsync(projectId, page, pageSize, status, priority, sortBy, sortDir);
 
         return Ok(new
         {
