@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using TaskManagement.Application.Interfaces;
 
 namespace TaskManagement.API.Controllers;
@@ -67,7 +68,7 @@ public class ProjectsController(IProjectService projects)  : ControllerBase
 
             return NoContent();
         }
-        catch (Microsoft.EntityFrameworkCore.DbUpdateConcurrencyException)
+        catch (DbUpdateConcurrencyException)
         {
             return Conflict(new
             {
@@ -88,7 +89,7 @@ public class ProjectsController(IProjectService projects)  : ControllerBase
             await projects.ArchiveAsync(id, request.RowVersion);
             return NoContent();
         }
-        catch (Microsoft.EntityFrameworkCore.DbUpdateConcurrencyException)
+        catch (DbUpdateConcurrencyException)
         {
             return Conflict(new
             {
@@ -99,5 +100,31 @@ public class ProjectsController(IProjectService projects)  : ControllerBase
         {
             return NotFound(new { ex.Message });
         }
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> List(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        [FromQuery] string? sortBy = null,
+        [FromQuery] string? sortDir = "desc")
+    {
+        var (total, projectsItems) =
+            await projects.ListAsync(page, pageSize, sortBy, sortDir);
+
+        return Ok(new
+        {
+            total,
+            page,
+            pageSize,
+            items = projectsItems.Select(x => new
+            {
+                x.Id,
+                x.Name,
+                x.Description,
+                x.IsArchived,
+                x.CreatedAt
+            })
+        });
     }
 }

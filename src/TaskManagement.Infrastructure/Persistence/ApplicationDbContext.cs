@@ -50,6 +50,10 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             e.Property(x => x.RowVersion)
                 .IsRowVersion();
 
+            e.Property(x => x.RowVersion)
+                .IsRowVersion()
+                .IsConcurrencyToken();
+
             e.HasMany(x => x.Tasks)
                 .WithOne()
                 .HasForeignKey(x => x.ProjectId);
@@ -74,6 +78,10 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 
             e.Property(x => x.RowVersion)
                 .IsRowVersion();
+
+            e.Property(x => x.RowVersion)
+                .IsRowVersion()
+                .IsConcurrencyToken();
         });
     }
 }

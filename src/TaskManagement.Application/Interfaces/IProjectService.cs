@@ -11,4 +11,10 @@ public interface IProjectService
     Task ArchiveAsync(Guid projectId, byte[] rowVersion);
 
     Task<Project?> GetByIdAsync(Guid projectId);
+
+    Task<(int total, List<Project> items)> ListAsync(
+        int page,
+        int pageSize,
+        string? sortBy,
+        string? sortDir);
 }

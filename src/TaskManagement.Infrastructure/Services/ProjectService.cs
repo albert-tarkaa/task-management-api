@@ -30,6 +30,9 @@ public class ProjectService(ApplicationDbContext db) : IProjectService
 
         if (project == null) throw new Exception("Project not found");
 
+        if (project.Name == name && project.Description == description)
+            throw new InvalidOperationException("No changes detected.");
+
         db.Entry(project).Property("RowVersion").OriginalValue = rowVersion;
 
         project.UpdateDetails(name, description);
@@ -48,5 +51,34 @@ public class ProjectService(ApplicationDbContext db) : IProjectService
         project.Archive();
 
         await db.SaveChangesAsync();
+    }
+
+    public async Task<(int total, List<Project> items)> ListAsync(
+        int page,
+        int pageSize,
+        string? sortBy,
+        string? sortDir)
+    {
+        var query = db.Projects.AsNoTracking();
+
+        var total = await query.CountAsync();
+
+        var isAsc = string.Equals(sortDir, "asc", StringComparison.OrdinalIgnoreCase);
+
+        query = (sortBy?.ToLowerInvariant()) switch
+        {
+            "name" => isAsc
+                ? query.OrderBy(x => x.Name)
+                : query.OrderByDescending(x => x.Name),
+
+            _ => query.OrderByDescending(x => x.CreatedAt)
+        };
+
+        var items = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        return (total, items);
     }
 }
