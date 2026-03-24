@@ -1,9 +1,11 @@
 
 using System.Text;
+using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using TaskManagement.API.Middleware;
+using TaskManagement.API.Validation;
 using TaskManagement.Application.Interfaces;
 using TaskManagement.Infrastructure.Persistence;
 using TaskManagement.Infrastructure.Security;
@@ -20,6 +22,7 @@ builder.Services.AddSingleton<PasswordHasher>();
 builder.Services.AddSingleton<JwtTokenGenerator>();
 builder.Services.AddScoped<IProjectService, ProjectService>();
 builder.Services.AddScoped<ITaskService, TaskService>();
+builder.Services.AddValidatorsFromAssemblyContaining<CreateTaskValidator>();
 
 // DbContext
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
