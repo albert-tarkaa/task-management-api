@@ -1,3 +1,4 @@
+using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -21,18 +22,23 @@ public class TasksController(ITaskService tasks) : ControllerBase
     public record TransitionRequest(byte[] RowVersion);
 
     [HttpPost]
-    public async Task<IActionResult> Create(CreateTaskRequest request)
+    public async Task<IActionResult> Create(
+        CreateTaskRequest request,
+        IValidator<CreateTaskRequest> validator)
     {
-        try
-        {
-            var task = await tasks.CreateAsync(request.Title, request.ProjectId, request.Priority, request.DueDate,
-                request.Description);
-            return Ok(new {task.Id, task.Title, task.ProjectId, task.Priority, task.DueDate, task.Description});
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new { ex.Message });
-        }
+        var result = await validator.ValidateAsync(request);
+
+        if (!result.IsValid)
+            return BadRequest(result.Errors);
+
+        var task = await tasks.CreateAsync(
+            request.Title,
+            request.ProjectId,
+            request.Priority,
+            request.DueDate,
+            request.Description);
+
+        return Ok(task);
     }
 
     [HttpGet("project/{projectId:guid}")]
