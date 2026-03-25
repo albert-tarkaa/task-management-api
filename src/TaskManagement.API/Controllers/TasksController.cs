@@ -2,6 +2,7 @@ using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using TaskManagement.Application.Common;
 using TaskManagement.Application.Interfaces;
 using TaskManagement.Domain.Enums;
 
@@ -24,12 +25,9 @@ public class TasksController(ITaskService tasks) : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create(
         CreateTaskRequest request,
-        IValidator<CreateTaskRequest> validator)
+        IValidationService validation)
     {
-        var result = await validator.ValidateAsync(request);
-
-        if (!result.IsValid)
-            return BadRequest(result.Errors);
+        await validation.ValidateAsync(request);
 
         var task = await tasks.CreateAsync(
             request.Title,
