@@ -1,3 +1,4 @@
+using TaskManagement.Application.Common;
 using TaskManagement.Domain.Entities;
 using TaskManagement.Domain.Enums;
 
@@ -5,22 +6,22 @@ namespace TaskManagement.Application.Interfaces;
 
 public interface ITaskService
 {
-    Task<WorkTask> CreateAsync(
+    Task<Result<WorkTask>> CreateAsync(
         string title,
         Guid projectId,
         TaskPriority priority,
         DateTime? dueDate,
         string? description);
 
-    Task<WorkTask?> GetByIdAsync(Guid id);
+    Task<Result<WorkTask>> GetByIdAsync(Guid id);
 
-    Task AssignAsync(Guid taskId, Guid userId, byte[] rowVersion);
+    Task <Result> AssignAsync(Guid taskId, Guid userId, byte[] rowVersion);
 
-    Task StartAsync(Guid taskId, byte[] rowVersion);
+    Task<Result> StartAsync(Guid taskId, byte[] rowVersion);
 
-    Task CompleteAsync(Guid taskId, byte[] rowVersion);
+    Task <Result> CompleteAsync(Guid taskId, byte[] rowVersion);
 
-    Task UpdateAsync(
+    Task <Result>UpdateAsync(
         Guid taskId,
         string title,
         string? description,
