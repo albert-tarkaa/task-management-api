@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using TaskManagement.Application.Common;
+using TaskManagement.Application.DTOs;
 using TaskManagement.Application.Interfaces;
 using TaskManagement.Domain.Entities;
 using TaskManagement.Domain.Enums;
@@ -7,7 +8,7 @@ using TaskManagement.Infrastructure.Persistence;
 
 namespace TaskManagement.Infrastructure.Services;
 
-public class TaskService(ApplicationDbContext db) : ITaskService
+public class TaskService(ApplicationDbContext db,IValidationService validation) : ITaskService
 {
     public async Task<Result<WorkTask>> CreateAsync(
         string title,
@@ -16,6 +17,14 @@ public class TaskService(ApplicationDbContext db) : ITaskService
         DateTime? dueDate,
         string? description)
     {
+
+        await validation.ValidateAsync(new CreateTaskRequest(
+            title,
+            projectId,
+            priority,
+            dueDate,
+            description));
+
         var projectExists = await db.Projects
             .AnyAsync(x => x.Id == projectId && !x.IsArchived);
 
@@ -129,6 +138,13 @@ public class TaskService(ApplicationDbContext db) : ITaskService
 
         if (task == null)
             return Result.Failure(Error.NotFound("Task"));
+
+        await validation.ValidateAsync(new CreateTaskRequest(
+            title,
+            task.ProjectId,
+            priority,
+            dueDate,
+            description));
 
         // Detect no changes (important)
         if (task.Title == title &&

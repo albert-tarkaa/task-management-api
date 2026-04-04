@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TaskManagement.API.Common;
-using TaskManagement.Application.Common;
+using TaskManagement.Application.DTOs;
 using TaskManagement.Application.Interfaces;
 using TaskManagement.Domain.Enums;
 
@@ -12,22 +12,12 @@ namespace TaskManagement.API.Controllers;
 [Authorize]
 public class TasksController(ITaskService tasks) : ControllerBase
 {
-    public record CreateTaskRequest(
-        string Title,
-        Guid ProjectId,
-        TaskPriority Priority,
-        DateTime? DueDate,
-        string? Description);
 
     public record TransitionRequest(byte[] RowVersion);
 
     [HttpPost]
-    public async Task<IActionResult> Create(
-        CreateTaskRequest request,
-        IValidationService validation)
+    public async Task<IActionResult> Create(CreateTaskRequest request)
     {
-        await validation.ValidateAsync(request);
-
         var result = await tasks.CreateAsync(
             request.Title,
             request.ProjectId,
