@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using TaskManagement.Application.Common;
 using TaskManagement.Application.Interfaces;
 using TaskManagement.Domain.Entities;
 using TaskManagement.Infrastructure.Persistence;
@@ -7,53 +8,79 @@ namespace TaskManagement.Infrastructure.Services;
 
 public class ProjectService(ApplicationDbContext db) : IProjectService
 {
-    public async Task<Project> CreateAsync(string name, Guid ownerId, string? description)
+    public async Task<Result<Project>> CreateAsync(string name, Guid ownerId, string? description)
     {
         var project = new Project(name, ownerId, description);
 
         db.Projects.Add(project);
         await db.SaveChangesAsync();
 
-        return project;
+        return Result<Project>.Success(project);
     }
 
-    public async Task<Project?> GetByIdAsync(Guid projectId)
+    public async Task<Result<Project>> GetByIdAsync(Guid projectId)
     {
-        return await db.Projects
+        var project = await db.Projects
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.Id == projectId);
+
+        if (project == null)
+            return Result<Project>.Failure(Error.NotFound("Project"));
+
+        return Result<Project>.Success(project);
     }
 
-    public async Task UpdateAsync(Guid projectId, string name, string? description, byte[] rowVersion)
+    public async Task <Result> UpdateAsync(Guid projectId, string name, string? description, byte[] rowVersion)
     {
         var project = await db.Projects.FirstOrDefaultAsync(x => x.Id == projectId);
 
-        if (project == null) throw new Exception("Project not found");
+        if (project == null) return Result<Project>.Failure(Error.NotFound("Project"));
 
         if (project.Name == name && project.Description == description)
-            throw new InvalidOperationException("No changes detected.");
+            return Result.Failure(Error.Validation("No changes detected."));
 
         db.Entry(project).Property("RowVersion").OriginalValue = rowVersion;
-
-        project.UpdateDetails(name, description);
-
-        await db.SaveChangesAsync();
+        try
+        {
+            project.UpdateDetails(name, description);
+            await db.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return Result.Failure(Error.Conflict("Concurrency conflict"));
+        }
+        catch (InvalidOperationException)
+        {
+            return Result.Failure(Error.Validation("Invalid task state"));
+        }
+        return Result.Success();
     }
 
-    public async Task ArchiveAsync(Guid projectId, byte[] rowVersion)
+    public async Task <Result> ArchiveAsync(Guid projectId, byte[] rowVersion)
     {
         var project = await db.Projects.FirstOrDefaultAsync(x => x.Id == projectId);
 
-        if (project == null) throw new Exception("Project not found");
+        if (project == null) return Result<Project>.Failure(Error.NotFound("Project"));
 
         db.Entry(project).Property("RowVersion").OriginalValue = rowVersion;
 
-        project.Archive();
-
-        await db.SaveChangesAsync();
+        try
+        {
+           project.Archive();
+            await db.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return Result.Failure(Error.Conflict("Concurrency conflict"));
+        }
+        catch (InvalidOperationException)
+        {
+            return Result.Failure(Error.Validation("Invalid task state"));
+        }
+        return Result.Success();
     }
 
-    public async Task<(int total, List<Project> items)> ListAsync(
+    public async Task <Result<(int total, List<Project> items)>> ListAsync(
         int page,
         int pageSize,
         string? sortBy,
@@ -79,6 +106,7 @@ public class ProjectService(ApplicationDbContext db) : IProjectService
             .Take(pageSize)
             .ToListAsync();
 
-        return (total, items);
+        return Result<(int total, List<Project> items)>
+            .Success((total, items));
     }
 }

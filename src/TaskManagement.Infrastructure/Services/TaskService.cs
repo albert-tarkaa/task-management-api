@@ -122,6 +122,10 @@ public class TaskService(ApplicationDbContext db,IValidationService validation) 
         {
             return Result.Failure(Error.Conflict("Concurrency conflict"));
         }
+        catch (InvalidOperationException)
+        {
+            return Result.Failure(Error.Validation("Invalid task state"));
+        }
 
         return Result.Success();
     }
@@ -166,6 +170,10 @@ public class TaskService(ApplicationDbContext db,IValidationService validation) 
         catch (DbUpdateConcurrencyException)
         {
             return Result.Failure(Error.Conflict("Concurrency conflict"));
+        }
+        catch (InvalidOperationException)
+        {
+            return Result.Failure(Error.Validation("Invalid task state"));
         }
 
         return Result.Success();
