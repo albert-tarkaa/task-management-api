@@ -1,7 +1,7 @@
-using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+using TaskManagement.API.Common;
+using TaskManagement.Application.DTOs;
 using TaskManagement.Application.Interfaces;
 using TaskManagement.Domain.Enums;
 
@@ -12,33 +12,20 @@ namespace TaskManagement.API.Controllers;
 [Authorize]
 public class TasksController(ITaskService tasks) : ControllerBase
 {
-    public record CreateTaskRequest(
-        string Title,
-        Guid ProjectId,
-        TaskPriority Priority,
-        DateTime? DueDate,
-        string? Description);
 
     public record TransitionRequest(byte[] RowVersion);
 
     [HttpPost]
-    public async Task<IActionResult> Create(
-        CreateTaskRequest request,
-        IValidator<CreateTaskRequest> validator)
+    public async Task<IActionResult> Create(CreateTaskRequest request)
     {
-        var result = await validator.ValidateAsync(request);
-
-        if (!result.IsValid)
-            return BadRequest(result.Errors);
-
-        var task = await tasks.CreateAsync(
+        var result = await tasks.CreateAsync(
             request.Title,
             request.ProjectId,
             request.Priority,
             request.DueDate,
             request.Description);
 
-        return Ok(task);
+        return result.ToActionResult();
     }
 
     [HttpGet("project/{projectId:guid}")]
@@ -75,65 +62,21 @@ public class TasksController(ITaskService tasks) : ControllerBase
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> Get(Guid id)
     {
-        var task = await tasks.GetByIdAsync(id);
-
-        if (task == null)
-            return NotFound();
-
-        return Ok(new
-        {
-            task.Id,
-            task.Title,
-            task.Description,
-            task.Status,
-            task.Priority,
-            task.ProjectId,
-            task.AssignedUserId,
-            task.DueDate,
-            task.RowVersion,
-            task.CreatedAt
-        });
+        var result = await tasks.GetByIdAsync(id);
+        return result.ToActionResult();
     }
 
     [HttpPost("{id:guid}/start")]
     public async Task<IActionResult> Start(Guid id, TransitionRequest request)
     {
-        try
-        {
-            await tasks.StartAsync(id, request.RowVersion);
-            return NoContent();
-        }
-        catch (DbUpdateConcurrencyException)
-        {
-            return Conflict(new
-            {
-                message = "Task was modified by another user. Refresh and try again."
-            });
-        }
-        catch (Exception ex)
-        {
-            return NotFound(new { ex.Message });
-        }
+        var result = await tasks.StartAsync(id, request.RowVersion);
+        return result.ToActionResult();
     }
 
     [HttpPost("{id:guid}/complete")]
     public async Task<IActionResult> Complete(Guid id, TransitionRequest request)
     {
-        try
-        {
-            await tasks.CompleteAsync(id, request.RowVersion);
-            return NoContent();
-        }
-        catch (DbUpdateConcurrencyException)
-        {
-            return Conflict(new
-            {
-                message = "Task was modified by another user. Refresh and try again."
-            });
-        }
-        catch (Exception ex)
-        {
-            return NotFound(new { ex.Message });
-        }
+        var result = await tasks.CompleteAsync(id, request.RowVersion);
+        return result.ToActionResult();
     }
 }

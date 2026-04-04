@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using TaskManagement.Application.Common;
+using TaskManagement.Application.DTOs;
 using TaskManagement.Application.Interfaces;
 using TaskManagement.Domain.Entities;
 using TaskManagement.Domain.Enums;
@@ -6,21 +8,28 @@ using TaskManagement.Infrastructure.Persistence;
 
 namespace TaskManagement.Infrastructure.Services;
 
-public class TaskService(ApplicationDbContext db) : ITaskService
+public class TaskService(ApplicationDbContext db,IValidationService validation) : ITaskService
 {
-
-    public async Task<WorkTask> CreateAsync(
+    public async Task<Result<WorkTask>> CreateAsync(
         string title,
         Guid projectId,
         TaskPriority priority,
         DateTime? dueDate,
         string? description)
     {
+
+        await validation.ValidateAsync(new CreateTaskRequest(
+            title,
+            projectId,
+            priority,
+            dueDate,
+            description));
+
         var projectExists = await db.Projects
             .AnyAsync(x => x.Id == projectId && !x.IsArchived);
 
         if (!projectExists)
-            throw new Exception("Project not found or archived");
+            return Result<WorkTask>.Failure(Error.NotFound("Project"));
 
         var task = new WorkTask(
             title,
@@ -32,57 +41,96 @@ public class TaskService(ApplicationDbContext db) : ITaskService
         db.Tasks.Add(task);
         await db.SaveChangesAsync();
 
-        return task;
+        return Result<WorkTask>.Success(task);
     }
 
-    public async Task<WorkTask?> GetByIdAsync(Guid taskId)
+    public async Task<Result<WorkTask>> GetByIdAsync(Guid taskId)
     {
-        return await db.Tasks.AsNoTracking().FirstOrDefaultAsync(x => x.Id == taskId);
+        var task = await db.Tasks.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == taskId);
+
+        if (task != null) return Result<WorkTask>.Success(task);
+        return Result<WorkTask>.Failure(Error.NotFound("Task"));
+
     }
 
-    public async Task AssignAsync(Guid taskId, Guid userId, byte[] rowVersion)
-    {
-        var task = await db.Tasks.FirstOrDefaultAsync(x => x.Id == taskId);
-
-        if (task == null)
-            throw new Exception("Task not found");
-
-        db.Entry(task).Property("RowVersion").OriginalValue = rowVersion;
-
-        task.AssignUser(userId);
-
-        await db.SaveChangesAsync();
-    }
-
-    public async Task StartAsync(Guid taskId, byte[] rowVersion)
+    public async Task<Result> AssignAsync(Guid taskId, Guid userId, byte[] rowVersion)
     {
         var task = await db.Tasks.FirstOrDefaultAsync(x => x.Id == taskId);
 
         if (task == null)
-            throw new Exception("Task not found");
+            return Result.Failure(Error.NotFound("Task"));
 
         db.Entry(task).Property("RowVersion").OriginalValue = rowVersion;
-
-        task.Start();
-
-        await db.SaveChangesAsync();
+        try
+        {
+            task.AssignUser(userId);
+            await db.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return Result.Failure(Error.Conflict("Concurrency conflict"));
+        }
+        catch (InvalidOperationException)
+        {
+            return Result.Failure(Error.Validation("Invalid task state"));
+        }
+        return Result.Success();
     }
 
-    public async Task CompleteAsync(Guid taskId, byte[] rowVersion)
+    public async Task<Result> StartAsync(Guid taskId, byte[] rowVersion)
     {
         var task = await db.Tasks.FirstOrDefaultAsync(x => x.Id == taskId);
 
         if (task == null)
-            throw new Exception("Task not found");
+            return Result.Failure(Error.NotFound("Task"));
 
         db.Entry(task).Property("RowVersion").OriginalValue = rowVersion;
 
-        task.Complete();
+        try
+        {
+            task.Start();
+            await db.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return Result.Failure(Error.Conflict("Concurrency conflict"));
+        }
+        catch (InvalidOperationException)
+        {
+            return Result.Failure(Error.Validation("Invalid task state"));
+        }
 
-        await db.SaveChangesAsync();
+        return Result.Success();
     }
 
-    public async Task UpdateAsync(
+    public async Task <Result>  CompleteAsync(Guid taskId, byte[] rowVersion)
+    {
+        var task = await db.Tasks.FirstOrDefaultAsync(x => x.Id == taskId);
+
+        if (task == null)
+            return Result.Failure(Error.NotFound("Task"));
+
+        db.Entry(task).Property("RowVersion").OriginalValue = rowVersion;
+
+        try
+        {
+            task.Complete();
+            await db.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return Result.Failure(Error.Conflict("Concurrency conflict"));
+        }
+        catch (InvalidOperationException)
+        {
+            return Result.Failure(Error.Validation("Invalid task state"));
+        }
+
+        return Result.Success();
+    }
+
+    public async Task<Result> UpdateAsync(
         Guid taskId,
         string title,
         string? description,
@@ -93,13 +141,42 @@ public class TaskService(ApplicationDbContext db) : ITaskService
         var task = await db.Tasks.FirstOrDefaultAsync(x => x.Id == taskId);
 
         if (task == null)
-            throw new Exception("Task not found");
+            return Result.Failure(Error.NotFound("Task"));
+
+        await validation.ValidateAsync(new CreateTaskRequest(
+            title,
+            task.ProjectId,
+            priority,
+            dueDate,
+            description));
+
+        // Detect no changes (important)
+        if (task.Title == title &&
+            task.Description == description &&
+            task.DueDate == dueDate &&
+            task.Priority == priority)
+        {
+            return Result.Failure(Error.Validation("No changes detected"));
+        }
 
         db.Entry(task).Property("RowVersion").OriginalValue = rowVersion;
 
-        task.UpdateDetails(title, description, dueDate, priority);
+        try
+        {
+            task.UpdateDetails(title, description, dueDate, priority);
 
-        await db.SaveChangesAsync();
+            await db.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return Result.Failure(Error.Conflict("Concurrency conflict"));
+        }
+        catch (InvalidOperationException)
+        {
+            return Result.Failure(Error.Validation("Invalid task state"));
+        }
+
+        return Result.Success();
     }
 
     public async Task<(int total, List<WorkTask> items)> ListByProjectAsync(
@@ -150,4 +227,3 @@ public class TaskService(ApplicationDbContext db) : ITaskService
         return (total, items);
     }
 }
-

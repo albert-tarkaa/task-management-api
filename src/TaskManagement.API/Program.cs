@@ -6,7 +6,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using TaskManagement.API.Middleware;
 using TaskManagement.API.Validation;
+using TaskManagement.Application.Common;
 using TaskManagement.Application.Interfaces;
+using TaskManagement.Infrastructure.Common;
 using TaskManagement.Infrastructure.Persistence;
 using TaskManagement.Infrastructure.Security;
 using TaskManagement.Infrastructure.Services;
@@ -23,6 +25,7 @@ builder.Services.AddSingleton<JwtTokenGenerator>();
 builder.Services.AddScoped<IProjectService, ProjectService>();
 builder.Services.AddScoped<ITaskService, TaskService>();
 builder.Services.AddValidatorsFromAssemblyContaining<CreateTaskValidator>();
+builder.Services.AddScoped<IValidationService, ValidationService>();
 
 // DbContext
 builder.Services.AddDbContext<ApplicationDbContext>(options =>

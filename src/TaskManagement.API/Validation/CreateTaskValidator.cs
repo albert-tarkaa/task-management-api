@@ -1,9 +1,9 @@
 using FluentValidation;
-using TaskManagement.API.Controllers;
+using TaskManagement.Application.DTOs;
 
 namespace TaskManagement.API.Validation;
 
-public class CreateTaskValidator  : AbstractValidator<TasksController.CreateTaskRequest>
+public class CreateTaskValidator  : AbstractValidator<CreateTaskRequest>
 {
     public CreateTaskValidator()
     {

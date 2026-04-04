@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using TaskManagement.API.Common;
 using TaskManagement.Application.Interfaces;
 
 namespace TaskManagement.API.Controllers;
@@ -23,94 +24,51 @@ public class ProjectsController(IProjectService projects)  : ControllerBase
     {
         var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-        var project = await projects.CreateAsync(
+        var result = await projects.CreateAsync(
             request.Name,
             userId,
             request.Description);
 
-        return Ok(new
-        {
-            project.Id,
-            project.Name,
-            project.Description,
-            project.CreatedAt
-        });
+        return result.ToActionResult();
     }
 
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> Get(Guid id)
     {
-        var project = await projects.GetByIdAsync(id);
-
-        if (project == null) return NotFound();
-
-        return Ok(new
-        {
-            project.Id,
-            project.Name,
-            project.Description,
-            project.IsArchived,
-            project.CreatedAt,
-            project.RowVersion
-        });
+        var result = await projects.GetByIdAsync(id);
+        return result.ToActionResult();
     }
 
     [HttpPut("{id:guid}")]
     public async Task<IActionResult> Update(Guid id, UpdateProjectRequest request)
     {
-        try
-        {
-            await projects.UpdateAsync(
-                id,
-                request.Name,
-                request.Description,
-                request.RowVersion);
-
-            return NoContent();
-        }
-        catch (DbUpdateConcurrencyException)
-        {
-            return Conflict(new
-            {
-                message = "Project was modified by another user. Refresh and try again."
-            });
-        }
-        catch (Exception ex)
-        {
-            return NotFound(new { ex.Message });
-        }
+        var result = await projects.UpdateAsync(id,
+            request.Name,
+            request.Description,
+            request.RowVersion);
+        return result.ToActionResult();
     }
 
     [HttpPost("{id:guid}/archive")]
     public async Task<IActionResult> Archive(Guid id, ArchiveProjectRequest request)
     {
-        try
-        {
-            await projects.ArchiveAsync(id, request.RowVersion);
-            return NoContent();
-        }
-        catch (DbUpdateConcurrencyException)
-        {
-            return Conflict(new
-            {
-                message = "Project was modified by another user. Refresh and try again."
-            });
-        }
-        catch (Exception ex)
-        {
-            return NotFound(new { ex.Message });
-        }
+        var result = await projects.ArchiveAsync(id, request.RowVersion);
+        return result.ToActionResult();
     }
 
     [HttpGet]
     public async Task<IActionResult> List(
-        [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 20,
-        [FromQuery] string? sortBy = null,
-        [FromQuery] string? sortDir = "desc")
+        int page = 1,
+        int pageSize = 20,
+        string? sortBy = null,
+        string? sortDir = "desc")
     {
-        var (total, projectsItems) =
-            await projects.ListAsync(page, pageSize, sortBy, sortDir);
+        var result = await projects.ListAsync(page, pageSize, sortBy, sortDir);
+
+        if (!result.IsSuccess)
+            return result.ToActionResult();
+
+        var (total, projectsItems) = result.Value;
 
         return Ok(new
         {
