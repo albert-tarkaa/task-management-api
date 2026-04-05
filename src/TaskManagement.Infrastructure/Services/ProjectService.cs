@@ -9,6 +9,8 @@ namespace TaskManagement.Infrastructure.Services;
 
 public class ProjectService(ApplicationDbContext db, IMemoryCache cache) : IProjectService
 {
+    private static readonly HashSet<string> CacheKeys = new();
+
     public async Task<Result<Project>> CreateAsync(string name, Guid ownerId, string? description)
     {
         var project = new Project(name, ownerId, description);
@@ -16,6 +18,12 @@ public class ProjectService(ApplicationDbContext db, IMemoryCache cache) : IProj
         db.Projects.Add(project);
         await db.SaveChangesAsync();
 
+        foreach (var key in CacheKeys)
+        {
+            cache.Remove(key);
+        }
+
+        CacheKeys.Clear();
         return Result<Project>.Success(project);
     }
 
@@ -31,7 +39,7 @@ public class ProjectService(ApplicationDbContext db, IMemoryCache cache) : IProj
         return Result<Project>.Success(project);
     }
 
-    public async Task <Result> UpdateAsync(Guid projectId, string name, string? description, byte[] rowVersion)
+    public async Task<Result> UpdateAsync(Guid projectId, string name, string? description, byte[] rowVersion)
     {
         var project = await db.Projects.FirstOrDefaultAsync(x => x.Id == projectId);
 
@@ -45,6 +53,13 @@ public class ProjectService(ApplicationDbContext db, IMemoryCache cache) : IProj
         {
             project.UpdateDetails(name, description);
             await db.SaveChangesAsync();
+
+            foreach (var key in CacheKeys)
+            {
+                cache.Remove(key);
+            }
+
+            CacheKeys.Clear();
         }
         catch (DbUpdateConcurrencyException)
         {
@@ -54,10 +69,11 @@ public class ProjectService(ApplicationDbContext db, IMemoryCache cache) : IProj
         {
             return Result.Failure(Error.Validation("Invalid task state"));
         }
+
         return Result.Success();
     }
 
-    public async Task <Result> ArchiveAsync(Guid projectId, byte[] rowVersion)
+    public async Task<Result> ArchiveAsync(Guid projectId, byte[] rowVersion)
     {
         var project = await db.Projects.FirstOrDefaultAsync(x => x.Id == projectId);
 
@@ -67,8 +83,14 @@ public class ProjectService(ApplicationDbContext db, IMemoryCache cache) : IProj
 
         try
         {
-           project.Archive();
+            project.Archive();
             await db.SaveChangesAsync();
+            foreach (var key in CacheKeys)
+            {
+                cache.Remove(key);
+            }
+
+            CacheKeys.Clear();
         }
         catch (DbUpdateConcurrencyException)
         {
@@ -78,10 +100,11 @@ public class ProjectService(ApplicationDbContext db, IMemoryCache cache) : IProj
         {
             return Result.Failure(Error.Validation("Invalid task state"));
         }
+
         return Result.Success();
     }
 
-    public async Task <Result<(int total, List<Project> items)>> ListAsync(
+    public async Task<Result<(int total, List<Project> items)>> ListAsync(
         int page,
         int pageSize,
         string? sortBy,
@@ -114,6 +137,8 @@ public class ProjectService(ApplicationDbContext db, IMemoryCache cache) : IProj
             .ToListAsync();
 
         var resultData = (total, items);
+
+        CacheKeys.Add(cacheKey);
         cache.Set(cacheKey, resultData, TimeSpan.FromMinutes(5));
 
         return Result<(int total, List<Project> items)>
