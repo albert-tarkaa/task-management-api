@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using TaskManagement.Application.Common;
 using TaskManagement.Application.Interfaces;
 using TaskManagement.Domain.Entities;
@@ -6,7 +7,7 @@ using TaskManagement.Infrastructure.Persistence;
 
 namespace TaskManagement.Infrastructure.Services;
 
-public class ProjectService(ApplicationDbContext db) : IProjectService
+public class ProjectService(ApplicationDbContext db, IMemoryCache cache) : IProjectService
 {
     public async Task<Result<Project>> CreateAsync(string name, Guid ownerId, string? description)
     {
@@ -86,6 +87,12 @@ public class ProjectService(ApplicationDbContext db) : IProjectService
         string? sortBy,
         string? sortDir)
     {
+        var cacheKey = $"projects:list:{page}:{pageSize}:{sortBy}:{sortDir}";
+        if (cache.TryGetValue(cacheKey, out (int total, List<Project> items) cached))
+        {
+            return Result<(int total, List<Project> items)>.Success(cached);
+        }
+
         var query = db.Projects.AsNoTracking();
 
         var total = await query.CountAsync();
@@ -105,6 +112,9 @@ public class ProjectService(ApplicationDbContext db) : IProjectService
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync();
+
+        var resultData = (total, items);
+        cache.Set(cacheKey, resultData, TimeSpan.FromMinutes(5));
 
         return Result<(int total, List<Project> items)>
             .Success((total, items));

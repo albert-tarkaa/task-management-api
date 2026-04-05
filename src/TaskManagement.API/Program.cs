@@ -27,6 +27,7 @@ builder.Services.AddScoped<ITaskService, TaskService>();
 builder.Services.AddValidatorsFromAssemblyContaining<CreateTaskValidator>();
 builder.Services.AddScoped<IValidationService, ValidationService>();
 
+builder.Services.AddMemoryCache();
 // DbContext
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(
