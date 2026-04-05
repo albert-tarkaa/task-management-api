@@ -7,10 +7,8 @@ using TaskManagement.Infrastructure.Persistence;
 
 namespace TaskManagement.Infrastructure.Services;
 
-public class ProjectService(ApplicationDbContext db, IMemoryCache cache) : IProjectService
+public class ProjectService(ApplicationDbContext db, ICacheService cache) : IProjectService
 {
-    private static readonly HashSet<string> CacheKeys = new();
-
     public async Task<Result<Project>> CreateAsync(string name, Guid ownerId, string? description)
     {
         var project = new Project(name, ownerId, description);
@@ -18,12 +16,7 @@ public class ProjectService(ApplicationDbContext db, IMemoryCache cache) : IProj
         db.Projects.Add(project);
         await db.SaveChangesAsync();
 
-        foreach (var key in CacheKeys)
-        {
-            cache.Remove(key);
-        }
-
-        CacheKeys.Clear();
+        await cache.RemoveByPrefixAsync("projects:list");
         return Result<Project>.Success(project);
     }
 
@@ -54,12 +47,7 @@ public class ProjectService(ApplicationDbContext db, IMemoryCache cache) : IProj
             project.UpdateDetails(name, description);
             await db.SaveChangesAsync();
 
-            foreach (var key in CacheKeys)
-            {
-                cache.Remove(key);
-            }
-
-            CacheKeys.Clear();
+            await cache.RemoveByPrefixAsync("projects:list");
         }
         catch (DbUpdateConcurrencyException)
         {
@@ -85,12 +73,8 @@ public class ProjectService(ApplicationDbContext db, IMemoryCache cache) : IProj
         {
             project.Archive();
             await db.SaveChangesAsync();
-            foreach (var key in CacheKeys)
-            {
-                cache.Remove(key);
-            }
 
-            CacheKeys.Clear();
+            await cache.RemoveByPrefixAsync("projects:list");
         }
         catch (DbUpdateConcurrencyException)
         {
@@ -111,11 +95,11 @@ public class ProjectService(ApplicationDbContext db, IMemoryCache cache) : IProj
         string? sortDir)
     {
         var cacheKey = $"projects:list:{page}:{pageSize}:{sortBy}:{sortDir}";
-        if (cache.TryGetValue(cacheKey, out (int total, List<Project> items) cached))
+        var (found, cached) = await cache.GetAsync<(int total, List<Project> items)>(cacheKey);
+        if (found)
         {
             return Result<(int total, List<Project> items)>.Success(cached);
         }
-
         var query = db.Projects.AsNoTracking();
 
         var total = await query.CountAsync();
@@ -138,10 +122,7 @@ public class ProjectService(ApplicationDbContext db, IMemoryCache cache) : IProj
 
         var resultData = (total, items);
 
-        CacheKeys.Add(cacheKey);
-        cache.Set(cacheKey, resultData, TimeSpan.FromMinutes(5));
-
-        return Result<(int total, List<Project> items)>
-            .Success((total, items));
+        await cache.SetAsync(cacheKey, resultData);
+        return Result<(int total, List<Project> items)>.Success(resultData);
     }
 }
