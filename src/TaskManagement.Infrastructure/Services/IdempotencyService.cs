@@ -6,15 +6,31 @@ namespace TaskManagement.Infrastructure.Services;
 
 public class IdempotencyService : IIdempotencyService
 {
-    private static readonly ConcurrentDictionary<string, object> Store = new();
+    private static readonly ConcurrentDictionary<string, (object task, DateTime expiry)> Store = new();
 
     public async Task<T> ExecuteAsync<T>(string key, Func<Task<T>> action)
     {
-        var task = (Task<T>)Store.GetOrAdd(key, _ => action());
+        var now = DateTime.UtcNow;
+
+        foreach (var kvp in Store)
+        {
+            if (kvp.Value.expiry < now)
+            {
+                Store.TryRemove(kvp.Key, out _);
+            }
+        }
+
+        var entry = (Task<T>)Store.GetOrAdd(key, _ =>
+        {
+            var task = action();
+            var expiry = now.AddMinutes(5);
+
+            return ((object)task, expiry);
+        }).task;
 
         try
         {
-            var result = await task;
+            var result = await entry;
             return result;
         }
         catch (Exception ex)
