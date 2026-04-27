@@ -23,7 +23,7 @@ public class IdempotencyService : IIdempotencyService
         var entry = (Task<T>)Store.GetOrAdd(key, _ =>
         {
             var task = action();
-            var expiry = now.AddMinutes(5);
+            var expiry = now.AddHours(24);
 
             return ((object)task, expiry);
         }).task;
