@@ -69,22 +69,17 @@ public class TasksController(ITaskService tasks, IIdempotencyService idempotency
     }
 
     [HttpPost("{id:guid}/start")]
+    [Idempotent]
     public async Task<IActionResult> Start(Guid id, TransitionRequest request)
     {
-        var key = Request.Headers["Idempotency-Key"].FirstOrDefault();
-
-        var result = string.IsNullOrWhiteSpace(key)
-            ? await executeStart()
-            : await idempotency.ExecuteAsync(key, executeStart);
-
+        var result = await tasks.StartAsync(id, request.RowVersion);
         return result.ToActionResult();
-
-        Task<Result> executeStart() => tasks.StartAsync(id, request.RowVersion);
     }
 
     [HttpPost("{id:guid}/complete")]
     public async Task<IActionResult> Complete(Guid id, TransitionRequest request)
     {
+
         var result = await tasks.CompleteAsync(id, request.RowVersion);
         return result.ToActionResult();
     }

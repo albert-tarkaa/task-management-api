@@ -40,4 +40,10 @@ public class IdempotencyService : IIdempotencyService
             throw;
         }
     }
+
+    public async Task<object> ExecuteAsync(string key, Func<Task<object>> action)
+    {
+        var result = await ExecuteAsync<object>(key, action);
+        return result;
+    }
 }
