@@ -1,16 +1,18 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TaskManagement.API.Common;
+using TaskManagement.Application.Common;
 using TaskManagement.Application.DTOs;
 using TaskManagement.Application.Interfaces;
 using TaskManagement.Domain.Enums;
+using TaskManagement.Infrastructure.Services;
 
 namespace TaskManagement.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public class TasksController(ITaskService tasks) : ControllerBase
+public class TasksController(ITaskService tasks, IIdempotencyService idempotency, ILogger<TasksController> logger) : ControllerBase
 {
 
     public record TransitionRequest(byte[] RowVersion);
@@ -67,6 +69,7 @@ public class TasksController(ITaskService tasks) : ControllerBase
     }
 
     [HttpPost("{id:guid}/start")]
+    [Idempotent]
     public async Task<IActionResult> Start(Guid id, TransitionRequest request)
     {
         var result = await tasks.StartAsync(id, request.RowVersion);
@@ -76,6 +79,7 @@ public class TasksController(ITaskService tasks) : ControllerBase
     [HttpPost("{id:guid}/complete")]
     public async Task<IActionResult> Complete(Guid id, TransitionRequest request)
     {
+
         var result = await tasks.CompleteAsync(id, request.RowVersion);
         return result.ToActionResult();
     }

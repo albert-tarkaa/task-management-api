@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using TaskManagement.Application.Common;
 using TaskManagement.Application.Interfaces;
 using TaskManagement.Domain.Entities;
@@ -6,7 +7,7 @@ using TaskManagement.Infrastructure.Persistence;
 
 namespace TaskManagement.Infrastructure.Services;
 
-public class ProjectService(ApplicationDbContext db) : IProjectService
+public class ProjectService(ApplicationDbContext db, ICacheService cache) : IProjectService
 {
     public async Task<Result<Project>> CreateAsync(string name, Guid ownerId, string? description)
     {
@@ -15,6 +16,7 @@ public class ProjectService(ApplicationDbContext db) : IProjectService
         db.Projects.Add(project);
         await db.SaveChangesAsync();
 
+        await cache.RemoveByPrefixAsync("projects:list");
         return Result<Project>.Success(project);
     }
 
@@ -30,7 +32,7 @@ public class ProjectService(ApplicationDbContext db) : IProjectService
         return Result<Project>.Success(project);
     }
 
-    public async Task <Result> UpdateAsync(Guid projectId, string name, string? description, byte[] rowVersion)
+    public async Task<Result> UpdateAsync(Guid projectId, string name, string? description, byte[] rowVersion)
     {
         var project = await db.Projects.FirstOrDefaultAsync(x => x.Id == projectId);
 
@@ -44,6 +46,8 @@ public class ProjectService(ApplicationDbContext db) : IProjectService
         {
             project.UpdateDetails(name, description);
             await db.SaveChangesAsync();
+
+            await cache.RemoveByPrefixAsync("projects:list");
         }
         catch (DbUpdateConcurrencyException)
         {
@@ -53,10 +57,11 @@ public class ProjectService(ApplicationDbContext db) : IProjectService
         {
             return Result.Failure(Error.Validation("Invalid task state"));
         }
+
         return Result.Success();
     }
 
-    public async Task <Result> ArchiveAsync(Guid projectId, byte[] rowVersion)
+    public async Task<Result> ArchiveAsync(Guid projectId, byte[] rowVersion)
     {
         var project = await db.Projects.FirstOrDefaultAsync(x => x.Id == projectId);
 
@@ -66,8 +71,10 @@ public class ProjectService(ApplicationDbContext db) : IProjectService
 
         try
         {
-           project.Archive();
+            project.Archive();
             await db.SaveChangesAsync();
+
+            await cache.RemoveByPrefixAsync("projects:list");
         }
         catch (DbUpdateConcurrencyException)
         {
@@ -77,15 +84,22 @@ public class ProjectService(ApplicationDbContext db) : IProjectService
         {
             return Result.Failure(Error.Validation("Invalid task state"));
         }
+
         return Result.Success();
     }
 
-    public async Task <Result<(int total, List<Project> items)>> ListAsync(
+    public async Task<Result<(int total, List<Project> items)>> ListAsync(
         int page,
         int pageSize,
         string? sortBy,
         string? sortDir)
     {
+        var cacheKey = $"projects:list:{page}:{pageSize}:{sortBy}:{sortDir}";
+        var (found, cached) = await cache.GetAsync<(int total, List<Project> items)>(cacheKey);
+        if (found)
+        {
+            return Result<(int total, List<Project> items)>.Success(cached);
+        }
         var query = db.Projects.AsNoTracking();
 
         var total = await query.CountAsync();
@@ -106,7 +120,9 @@ public class ProjectService(ApplicationDbContext db) : IProjectService
             .Take(pageSize)
             .ToListAsync();
 
-        return Result<(int total, List<Project> items)>
-            .Success((total, items));
+        var resultData = (total, items);
+
+        await cache.SetAsync(cacheKey, resultData);
+        return Result<(int total, List<Project> items)>.Success(resultData);
     }
 }

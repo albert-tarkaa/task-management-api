@@ -4,6 +4,7 @@ using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using TaskManagement.API.Common;
 using TaskManagement.API.Middleware;
 using TaskManagement.API.Validation;
 using TaskManagement.Application.Common;
@@ -26,7 +27,11 @@ builder.Services.AddScoped<IProjectService, ProjectService>();
 builder.Services.AddScoped<ITaskService, TaskService>();
 builder.Services.AddValidatorsFromAssemblyContaining<CreateTaskValidator>();
 builder.Services.AddScoped<IValidationService, ValidationService>();
+builder.Services.AddSingleton<IIdempotencyService, IdempotencyService>();
+builder.Services.AddScoped<IdempotencyFilter>();
 
+builder.Services.AddMemoryCache();
+builder.Services.AddScoped<ICacheService, MemoryCacheService>();
 // DbContext
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(
